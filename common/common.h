@@ -727,6 +727,7 @@ struct common_params {
     int models_memory_margin = 0;       // MiB of device memory to keep free when loading models (0 = no memory accounting)
     bool models_autoload = true;        // automatically load models when requested via the router server
     std::string models_preset_hf = "";  // show a warning about remote presets on router loaded (if not empty)
+    bool models_allow_extra_args = false; // allow extra_args in /models/load endpoint
 
     bool log_json = false;
 
