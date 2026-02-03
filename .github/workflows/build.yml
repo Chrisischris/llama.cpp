@@ -21,7 +21,8 @@ on:
       '**/*.m',
       '**/*.metal',
       '**/*.comp',
-      '**/*.glsl'
+      '**/*.glsl',
+      '**/*.wgsl'
     ]
 
   pull_request:
@@ -42,7 +43,8 @@ on:
       '**/*.m',
       '**/*.metal',
       '**/*.comp',
-      '**/*.glsl'
+      '**/*.glsl',
+      '**/*.wgsl'
     ]
 
 concurrency:
@@ -63,7 +65,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -79,7 +81,6 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_RPATH="@loader_path" \
             -DLLAMA_FATAL_WARNINGS=ON \
-            -DLLAMA_CURL=OFF \
             -DLLAMA_BUILD_BORINGSSL=ON \
             -DGGML_METAL_USE_BF16=ON \
             -DGGML_METAL_EMBED_LIBRARY=OFF \
@@ -92,7 +93,7 @@ jobs:
         id: cmake_test
         run: |
           cd build
-          ctest -L 'main|curl' --verbose --timeout 900
+          ctest -L main --verbose --timeout 900
 
   macOS-latest-cmake-x64:
     runs-on: macos-15-intel
@@ -100,7 +101,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -118,7 +119,6 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_RPATH="@loader_path" \
             -DLLAMA_FATAL_WARNINGS=ON \
-            -DLLAMA_CURL=OFF \
             -DLLAMA_BUILD_BORINGSSL=ON \
             -DGGML_METAL=OFF \
             -DGGML_RPC=ON \
@@ -137,7 +137,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -152,13 +152,13 @@ jobs:
           DAWN_VERSION="v2.0.0"
           DAWN_OWNER="reeselevine"
           DAWN_REPO="dawn"
-          DAWN_ASSET_NAME="Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-macos-latest-Release.zip"
-          echo "Fetching release asset from https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}"
+          DAWN_ASSET_NAME="Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-macos-latest-Release"
+          echo "Fetching release asset from https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
           curl -L -o artifact.zip \
-            "https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}"
+            "https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
           mkdir dawn
           unzip artifact.zip
-          tar -xvf Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-macos-latest-Release.tar.gz -C dawn --strip-components=1
+          tar -xvf ${DAWN_ASSET_NAME}.tar.gz -C dawn --strip-components=1
 
       - name: Build
         id: cmake_build
@@ -192,7 +192,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -228,8 +228,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DLLAMA_FATAL_WARNINGS=ON \
             -DGGML_RPC=ON
           cmake --build build --config Release -j $(nproc)
@@ -238,7 +236,7 @@ jobs:
         id: cmake_test
         run: |
           cd build
-          ctest -L 'main|curl' --verbose --timeout 900
+          ctest -L main --verbose --timeout 900
 
       - name: Test llama2c conversion
         id: llama2c_test
@@ -274,7 +272,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -294,8 +292,6 @@ jobs:
         if: ${{ matrix.sanitizer != 'THREAD' }}
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DLLAMA_FATAL_WARNINGS=ON \
             -DLLAMA_SANITIZE_${{ matrix.sanitizer }}=ON \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
@@ -306,8 +302,6 @@ jobs:
         if: ${{ matrix.sanitizer == 'THREAD' }}
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DLLAMA_FATAL_WARNINGS=ON \
             -DLLAMA_SANITIZE_${{ matrix.sanitizer }}=ON \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
@@ -326,7 +320,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Dependencies
         id: depends
@@ -337,14 +331,10 @@ jobs:
       - name: Build
         id: cmake_build
         run: |
-          mkdir build
-          cd build
-          cmake .. \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
+          cmake -B build \
             -DLLAMA_FATAL_WARNINGS=ON \
             -DLLAMA_LLGUIDANCE=ON
-          cmake --build . --config Release -j $(nproc)
+          cmake --build build --config Release -j $(nproc)
 
       - name: Test
         id: cmake_test
@@ -360,7 +350,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # - name: ccache
       #   uses: ggml-org/ccache-action@v1.2.16
@@ -378,8 +368,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_RPC=ON
           cmake --build build --config Release -j $(nproc)
 
@@ -395,7 +383,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -413,8 +401,6 @@ jobs:
         id: cmake_configure
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DGGML_BACKEND_DL=ON \
             -DGGML_CPU_ALL_VARIANTS=ON \
@@ -431,7 +417,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -453,7 +439,7 @@ jobs:
           echo "VULKAN_SDK_VERSION=$(curl https://vulkan.lunarg.com/sdk/latest/linux.txt)" >> "$GITHUB_ENV"
 
       - name: Use Vulkan SDK Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-sdk
         with:
           path: ./vulkan_sdk
@@ -471,8 +457,6 @@ jobs:
         run: |
           source ./vulkan_sdk/setup-env.sh
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_VULKAN=ON
           cmake --build build --config Release -j $(nproc)
 
@@ -491,7 +475,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -513,7 +497,7 @@ jobs:
           echo "VULKAN_SDK_VERSION=$(curl https://vulkan.lunarg.com/sdk/latest/linux.txt)" >> "$GITHUB_ENV"
 
       - name: Use Vulkan SDK Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-sdk
         with:
           path: ./vulkan_sdk
@@ -533,21 +517,19 @@ jobs:
           DAWN_VERSION="v2.0.0"
           DAWN_OWNER="reeselevine"
           DAWN_REPO="dawn"
-          DAWN_ASSET_NAME="Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-ubuntu-latest-Release.zip"
-          echo "Fetching release asset from https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}"
+          DAWN_ASSET_NAME="Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-ubuntu-latest-Release"
+          echo "Fetching release asset from https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
           curl -L -o artifact.zip \
-            "https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}"
+            "https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
           mkdir dawn
           unzip artifact.zip
-          tar -xvf Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-ubuntu-latest-Release.tar.gz -C dawn --strip-components=1
+          tar -xvf ${DAWN_ASSET_NAME}.tar.gz -C dawn --strip-components=1
 
       - name: Build
         id: cmake_build
         run: |
           export Dawn_DIR=dawn/lib64/cmake/Dawn
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_WEBGPU=ON
           cmake --build build --config Release -j $(nproc)
 
@@ -564,7 +546,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -594,7 +576,7 @@ jobs:
           source emsdk/emsdk_env.sh
           emcmake cmake -B build-wasm \
             -DGGML_WEBGPU=ON \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DEMDAWNWEBGPU_DIR=emdawnwebgpu_pkg
 
           cmake --build build-wasm --target test-backend-ops -j $(nproc)
@@ -606,7 +588,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Dependencies
         id: depends
@@ -625,8 +607,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build -S . \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DCMAKE_HIP_COMPILER="$(hipconfig -l)/clang" \
             -DGGML_HIP_ROCWMMA_FATTN=ON \
             -DGGML_HIP=ON
@@ -639,7 +619,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Dependencies
         id: depends
@@ -658,8 +638,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build -S . \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_MUSA=ON
           cmake --build build --config Release -j $(nproc)
 
@@ -669,7 +647,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: add oneAPI to apt
         shell: bash
@@ -693,7 +671,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -707,8 +685,6 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_SYCL=ON \
             -DCMAKE_C_COMPILER=icx \
             -DCMAKE_CXX_COMPILER=icpx
@@ -720,7 +696,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: add oneAPI to apt
         shell: bash
@@ -744,7 +720,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -758,8 +734,6 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DGGML_SYCL=ON \
             -DCMAKE_C_COMPILER=icx \
             -DCMAKE_CXX_COMPILER=icpx \
@@ -778,7 +752,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -810,7 +784,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -842,7 +816,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build
         id: cmake_build
@@ -872,7 +846,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -882,7 +856,7 @@ jobs:
           save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
 
       - name: Download xcframework artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: llama-xcframework
           path: build-apple/llama.xcframework/
@@ -894,7 +868,7 @@ jobs:
           cmake -B build -G Xcode \
             -DGGML_METAL_USE_BF16=ON \
             -DGGML_METAL_EMBED_LIBRARY=ON \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DLLAMA_BUILD_EXAMPLES=OFF \
             -DLLAMA_BUILD_TOOLS=OFF \
             -DLLAMA_BUILD_TESTS=OFF \
@@ -914,7 +888,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -983,7 +957,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1044,7 +1018,7 @@ jobs:
         id: cmake_build
         run: |
           cmake -S . -B build ${{ matrix.defines }} `
-            -DLLAMA_CURL=OFF -DLLAMA_BUILD_BORINGSSL=ON
+            -DLLAMA_BUILD_BORINGSSL=ON
           cmake --build build --config Release -j ${env:NUMBER_OF_PROCESSORS}
 
       - name: Add libopenblas.dll
@@ -1082,7 +1056,7 @@ jobs:
     steps:
         - name: Clone
           id: checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
 
         - name: Install dependencies
           env:
@@ -1099,16 +1073,16 @@ jobs:
             save: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
 
         - name: Build with CMake
+          # TODO: Remove GGML_CUDA_CUB_3DOT2 flag once CCCL 3.2 is bundled within CTK and that CTK version is used in this project
           run: |
             cmake -S . -B build -G Ninja \
-              -DLLAMA_CURL=OFF \
-              -DLLAMA_OPENSSL=ON \
               -DLLAMA_FATAL_WARNINGS=ON \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_CUDA_ARCHITECTURES=89-real \
               -DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined \
               -DGGML_NATIVE=OFF \
-              -DGGML_CUDA=ON
+              -DGGML_CUDA=ON \
+              -DGGML_CUDA_CUB_3DOT2=ON
             cmake --build build
 
   windows-2022-cmake-cuda:
@@ -1121,7 +1095,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1144,17 +1118,18 @@ jobs:
       - name: Build
         id: cmake_build
         shell: cmd
+        # TODO: Remove GGML_CUDA_CUB_3DOT2 flag once CCCL 3.2 is bundled within CTK and that CTK version is used in this project
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake -S . -B build -G "Ninja Multi-Config" ^
             -DLLAMA_BUILD_SERVER=ON ^
-            -DLLAMA_CURL=OFF ^
             -DLLAMA_BUILD_BORINGSSL=ON ^
             -DGGML_NATIVE=OFF ^
             -DGGML_BACKEND_DL=ON ^
             -DGGML_CPU_ALL_VARIANTS=ON ^
             -DGGML_CUDA=ON ^
-            -DGGML_RPC=ON
+            -DGGML_RPC=ON ^
+            -DGGML_CUDA_CUB_3DOT2=ON
           set /A NINJA_JOBS=%NUMBER_OF_PROCESSORS%-1
           cmake --build build --config Release -j %NINJA_JOBS% -t ggml
           cmake --build build --config Release
@@ -1173,7 +1148,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1205,7 +1180,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Grab rocWMMA package
         id: grab_rocwmma
@@ -1215,7 +1190,7 @@ jobs:
           7z x data.tar
 
       - name: Use ROCm Installation Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-rocm
         with:
           path: C:\Program Files\AMD\ROCm
@@ -1255,7 +1230,6 @@ jobs:
             -DCMAKE_CXX_COMPILER="${env:HIP_PATH}\bin\clang++.exe" `
             -DCMAKE_CXX_FLAGS="-I$($PWD.Path.Replace('\', '/'))/opt/rocm-${{ env.ROCM_VERSION }}/include/" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DLLAMA_CURL=OFF `
             -DLLAMA_BUILD_BORINGSSL=ON `
             -DROCM_DIR="${env:HIP_PATH}" `
             -DGGML_HIP=ON `
@@ -1268,7 +1242,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -1282,7 +1256,7 @@ jobs:
           cmake -B build -G Xcode \
             -DGGML_METAL_USE_BF16=ON \
             -DGGML_METAL_EMBED_LIBRARY=ON \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DLLAMA_BUILD_EXAMPLES=OFF \
             -DLLAMA_BUILD_TOOLS=OFF \
             -DLLAMA_BUILD_TESTS=OFF \
@@ -1298,7 +1272,7 @@ jobs:
           ./build-xcframework.sh
 
       - name: Upload xcframework artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: llama-xcframework
           path: build-apple/llama.xcframework/
@@ -1314,7 +1288,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Disabled due to size (400MB) and always 0 cache hits
       # - name: ccache
@@ -1324,7 +1298,7 @@ jobs:
       #     evict-old-files: 1d
 
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           java-version: 17
           distribution: zulu
@@ -1349,14 +1323,14 @@ jobs:
       matrix:
         include:
           - build: 'arm64-cpu'
-            defines: '-D ANDROID_ABI=arm64-v8a -D ANDROID_PLATFORM=android-31 -D CMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake -D GGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8.5-a+fp16+i8mm -G Ninja -D LLAMA_CURL=OFF -D GGML_OPENMP=OFF'
+            defines: '-D ANDROID_ABI=arm64-v8a -D ANDROID_PLATFORM=android-31 -D CMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake -D GGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8.5-a+fp16+i8mm -G Ninja -D LLAMA_OPENSSL=OFF -D GGML_OPENMP=OFF'
           - build: 'arm64-snapdragon'
             defines: '--preset arm64-android-snapdragon-release'
 
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install OpenCL Headers and Libs
         id: install_opencl
@@ -1400,7 +1374,7 @@ jobs:
         id: update_presets
         if: ${{ matrix.build == 'arm64-snapdragon' }}
         run: |
-          cp docs/backend/hexagon/CMakeUserPresets.json .
+          cp docs/backend/snapdragon/CMakeUserPresets.json .
 
       - name: Build
         id: ndk_build
@@ -1415,7 +1389,6 @@ jobs:
           echo "FIXME: test on devices"
 
   openEuler-latest-cmake-cann:
-    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'Ascend NPU') }}
     defaults:
       run:
         shell: bash -el {0}
@@ -1424,10 +1397,15 @@ jobs:
         arch: [x86, aarch64]
         chip_type: ['910b', '310p']
         build: ['Release']
+        use_acl_graph: ['on', 'off']
+        exclude:
+          # 310P does not support USE_ACL_GRAPH=on
+          - chip_type: '310p'
+            use_acl_graph: 'on'
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -1449,6 +1427,7 @@ jobs:
         env:
           BUILD_TYPE: ${{ matrix.build }}
           SOC_TYPE: ascend${{ matrix.chip_type }}
+          USE_ACL_GRAPH: ${{ matrix.use_acl_graph }}
         run: |
           HOST_UID=$(id -u)
           HOST_GID=$(id -g)
@@ -1458,17 +1437,19 @@ jobs:
             -w /workspace \
             -e SOC_TYPE=${SOC_TYPE} \
             -e BUILD_TYPE=${BUILD_TYPE} \
+            -e USE_ACL_GRAPH=${USE_ACL_GRAPH} \
             "${{ steps.cann-image.outputs.image }}" \
             bash -lc '
               set -e
-              yum install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs git gcc gcc-c++ make cmake libcurl-devel
+              yum install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs git gcc gcc-c++ make cmake openssl-devel
               yum clean all && rm -rf /var/cache/yum
               git config --global --add safe.directory "/workspace"
               export LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/$(uname -m)-linux/devlib/:${LD_LIBRARY_PATH}
               cmake -S . -B build \
                   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
                   -DGGML_CANN=on \
-                  -DSOC_TYPE=${SOC_TYPE}
+                  -DSOC_TYPE=${SOC_TYPE} \
+                  -DUSE_ACL_GRAPH=${USE_ACL_GRAPH}
               cmake --build build -j $(nproc)
 
               chown -R '"${HOST_UID}"':'"${HOST_GID}"' /workspace/build
@@ -1482,7 +1463,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1495,7 +1476,7 @@ jobs:
         id: depends
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libcurl4-openssl-dev
+          sudo apt-get install build-essential
 
       - name: Test
         id: ggml-ci
@@ -1508,7 +1489,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1521,7 +1502,7 @@ jobs:
         id: depends
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libcurl4-openssl-dev
+          sudo apt-get install build-essential
 
       - name: Test
         id: ggml-ci
@@ -1534,7 +1515,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1547,12 +1528,12 @@ jobs:
         id: depends
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libcurl4-openssl-dev
+          sudo apt-get install build-essential
 
       - name: Test
         id: ggml-ci
         run: |
-          LLAMA_ARG_THREADS=$(nproc) bash ./ci/run.sh ./tmp/results ./tmp/mnt
+          LLAMA_ARG_THREADS=$(nproc) GG_BUILD_HIGH_PERF=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 
   ggml-ci-arm64-cpu-high-perf:
     runs-on: ubuntu-22.04-arm
@@ -1560,7 +1541,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1573,12 +1554,12 @@ jobs:
         id: depends
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libcurl4-openssl-dev
+          sudo apt-get install build-essential
 
       - name: Test
         id: ggml-ci
         run: |
-          LLAMA_ARG_THREADS=$(nproc) GG_BUILD_NO_SVE=1 GG_BUILD_NO_BF16=1 GG_BUILD_EXTRA_TESTS_0=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
+          LLAMA_ARG_THREADS=$(nproc) GG_BUILD_HIGH_PERF=1 GG_BUILD_NO_SVE=1 GG_BUILD_NO_BF16=1 GG_BUILD_EXTRA_TESTS_0=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 
   ggml-ci-arm64-cpu-high-perf-sve:
     runs-on: ubuntu-22.04-arm
@@ -1586,7 +1567,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.16
@@ -1599,7 +1580,7 @@ jobs:
         id: depends
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential libcurl4-openssl-dev
+          sudo apt-get install build-essential
 
       - name: Test
         id: ggml-ci
@@ -1612,7 +1593,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
@@ -1626,7 +1607,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
@@ -1640,7 +1621,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
@@ -1654,7 +1635,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
@@ -1667,7 +1648,7 @@ jobs:
   #   steps:
   #     - name: Clone
   #       id: checkout
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v6
 
   #     - name: Test
   #       id: ggml-ci
@@ -1681,7 +1662,7 @@ jobs:
   #   steps:
   #     - name: Clone
   #       id: checkout
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v6
 
   #     - name: Test
   #       id: ggml-ci
@@ -1695,12 +1676,40 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
         run: |
           GG_BUILD_METAL=1 bash ./ci/run.sh ~/results/llama.cpp ~/mnt/llama.cpp
+
+  ggml-ci-mac-webgpu:
+    runs-on: [self-hosted, macOS, ARM64]
+
+    steps:
+      - name: Clone
+        id: checkout
+        uses: actions/checkout@v6
+
+      - name: Dawn Dependency
+        id: dawn-depends
+        run: |
+          DAWN_VERSION="v2.0.0"
+          DAWN_OWNER="reeselevine"
+          DAWN_REPO="dawn"
+          DAWN_ASSET_NAME="Dawn-5e9a4865b1635796ccc77dd30057f2b4002a1355-macos-latest-Release"
+          echo "Fetching release asset from https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
+          curl -L -o artifact.zip \
+            "https://github.com/${DAWN_OWNER}/${DAWN_REPO}/releases/download/${DAWN_VERSION}/${DAWN_ASSET_NAME}.zip"
+          mkdir dawn
+          unzip artifact.zip
+          tar -xvf ${DAWN_ASSET_NAME}.tar.gz -C dawn --strip-components=1
+
+      - name: Test
+        id: ggml-ci
+        run: |
+          GG_BUILD_WEBGPU=1 GG_BUILD_WEBGPU_DAWN_PREFIX="$GITHUB_WORKSPACE/dawn" \
+            bash ./ci/run.sh ~/results/llama.cpp ~/mnt/llama.cpp
 
   ggml-ci-mac-vulkan:
     runs-on: [self-hosted, macOS, ARM64]
@@ -1708,7 +1717,7 @@ jobs:
     steps:
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test
         id: ggml-ci
@@ -1722,7 +1731,7 @@ jobs:
      steps:
        - name: Clone
          id: checkout
-         uses: actions/checkout@v4
+         uses: actions/checkout@v6
 
        - name: ccache
          uses: ggml-org/ccache-action@v1.2.16
@@ -1735,7 +1744,7 @@ jobs:
          id: depends
          run: |
            sudo apt-get update
-           sudo apt-get install -y build-essential libcurl4-openssl-dev
+           sudo apt-get install -y build-essential
 
        - name: Test
          id: ggml-ci
@@ -1751,7 +1760,7 @@ jobs:
           sudo apt-get update
 
           # Install necessary packages
-          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential libssl-dev wget ccache
+          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential libssl-dev wget ccache git-lfs
 
           # Set gcc-14 and g++-14 as the default compilers
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
@@ -1763,9 +1772,11 @@ jobs:
           rustup install stable
           rustup default stable
 
+          git lfs install
+
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check environment
         run: |
@@ -1800,8 +1811,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -DGGML_OPENMP=OFF \
             -DLLAMA_BUILD_EXAMPLES=ON \
@@ -1819,7 +1828,7 @@ jobs:
         id: cmake_test
         run: |
           cd build
-          ctest -L 'main|curl' --verbose --timeout 900
+          ctest -L main --verbose --timeout 900
 
       - name: Test llama2c conversion
         id: llama2c_test
@@ -1848,7 +1857,7 @@ jobs:
           sudo apt-get update
 
           # Install necessary packages
-          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential wget ccache
+          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential wget ccache git-lfs
 
           # Set gcc-14 and g++-14 as the default compilers
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
@@ -1860,6 +1869,8 @@ jobs:
           rustup install stable
           rustup default stable
 
+          git lfs install
+
       - name: GCC version check
         run: |
           gcc --version
@@ -1867,7 +1878,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup ccache
         run: |
@@ -1892,7 +1903,7 @@ jobs:
         if: ${{ matrix.sanitizer != 'THREAD' }}
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DGGML_OPENMP=ON \
             -DLLAMA_BUILD_EXAMPLES=ON \
@@ -1911,7 +1922,7 @@ jobs:
         if: ${{ matrix.sanitizer == 'THREAD' }}
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DGGML_OPENMP=OFF \
             -DLLAMA_BUILD_EXAMPLES=ON \
@@ -1940,7 +1951,7 @@ jobs:
           sudo apt-get update
 
           # Install necessary packages
-          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential wget ccache
+          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential wget ccache git-lfs
 
           # Set gcc-14 and g++-14 as the default compilers
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
@@ -1952,6 +1963,8 @@ jobs:
           rustup install stable
           rustup default stable
 
+          git lfs install
+
       - name: GCC version check
         run: |
           gcc --version
@@ -1959,7 +1972,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup ccache
         run: |
@@ -1980,7 +1993,7 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
+            -DLLAMA_OPENSSL=OFF \
             -DCMAKE_BUILD_TYPE=Release \
             -DGGML_OPENMP=OFF \
             -DLLAMA_BUILD_EXAMPLES=ON \
@@ -2012,7 +2025,7 @@ jobs:
           sudo apt-get update
 
           # Install necessary packages
-          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential libssl-dev wget ccache
+          sudo apt-get install -y libatomic1 libtsan2 gcc-14 g++-14 rustup cmake build-essential libssl-dev wget ccache git-lfs
 
           # Set gcc-14 and g++-14 as the default compilers
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
@@ -2024,6 +2037,8 @@ jobs:
           rustup install stable
           rustup default stable
 
+          git lfs install
+
       - name: GCC version check
         run: |
           gcc --version
@@ -2031,7 +2046,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup ccache
         run: |
@@ -2052,8 +2067,6 @@ jobs:
         id: cmake_build
         run: |
           cmake -B build \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_OPENSSL=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -DGGML_OPENMP=OFF \
             -DLLAMA_BUILD_EXAMPLES=ON \
@@ -2079,7 +2092,7 @@ jobs:
      steps:
        - name: Clone
          id: checkout
-         uses: actions/checkout@v4
+         uses: actions/checkout@v6
 
        - name: Dependencies
          id: depends
@@ -2089,7 +2102,6 @@ jobs:
            sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
            apt-get install -y \
             build-essential \
-            libcurl4-openssl-dev \
             python3-venv \
             gpg \
             wget \
