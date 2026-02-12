@@ -805,9 +805,11 @@ static std::string apply(
         {"bos_token", tmpl.bos_token()},
         {"eos_token", tmpl.eos_token()},
     };
-    if (tools_override.has_value() || !inputs.tools.empty()) {
-        inp["tools"] = tools_override.has_value() ? *tools_override : inputs.tools;
-    }
+    // Always set tools in the context (as null when empty) so templates that check
+    // "tools is not none" don't confuse Undefined with None and crash on tojson.
+    inp["tools"] = (tools_override.has_value() || !inputs.tools.empty())
+        ? (tools_override.has_value() ? *tools_override : inputs.tools)
+        : json(nullptr);
     if (inputs.extra_context.is_object()) {
         // TODO: do we need to merge, or replacing is fine?
         for (const auto & [k, v] : inputs.extra_context.items()) {
