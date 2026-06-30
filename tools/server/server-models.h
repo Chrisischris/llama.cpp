@@ -213,6 +213,8 @@ public:
         server_child_mode mode = SERVER_CHILD_MODE_NORMAL;
         // used for spawning a downloading child process
         std::optional<server_model_meta> custom_meta = std::nullopt;
+        // extra CLI args appended to the child process (requires --models-allow-extra-args)
+        std::vector<std::string> extra_args;
     };
 
     // load and unload model instances
