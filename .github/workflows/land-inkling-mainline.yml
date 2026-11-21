@@ -3,7 +3,8 @@ name: land-inkling-mainline
 # One-shot, started by schedule because API commits on this fork do not
 # trigger push workflows. Force-pushes master to the inkling2_loop commit
 # plus the Spore patches. That push removes this file, so the schedule
-# does not repeat.
+# does not repeat. Refuses to run once master is no longer one of these
+# temporary commits.
 
 on:
   schedule:
@@ -24,6 +25,13 @@ jobs:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY_RELEASE }}
         run: |
           set -euo pipefail
+          msg=$(curl -fsSL https://api.github.com/repos/Chrisischris/llama.cpp/commits/master | python3 -c 'import json,sys; print(json.load(sys.stdin)["commit"]["message"].splitlines()[0])')
+          echo "master message: $msg"
+          case "$msg" in
+            "land inkling mainline"*) ;;
+            *) echo "master is no longer a temporary land commit; not force-pushing"; exit 0 ;;
+          esac
+
           mkdir -p /tmp/inkling-patches
           base=https://raw.githubusercontent.com/sporeintel/homebrew-tap/329440244d6bab593a0c5036806a78534c113045/inkling-patches
           for name in \
@@ -39,7 +47,6 @@ jobs:
           git config user.email "me@chrishaen.com"
           git config user.name "Chris Haen"
           git remote add upstream https://github.com/ggml-org/llama.cpp.git
-          # Pin the Inkling 2 Mini merge. Later upstream commits must not move this reset.
           git fetch --no-tags upstream 29b52d398b294509746ec0a3f28948a3107c0213
           git checkout --detach FETCH_HEAD
           git am /tmp/inkling-patches/*.patch
@@ -50,12 +57,6 @@ jobs:
 
           current=$(git ls-remote https://github.com/Chrisischris/llama.cpp.git refs/heads/master | awk '{print $1}')
           echo "leasing $current"
-          if git cat-file -e "$current^{tree}" 2>/dev/null; then
-            if [ "$(git rev-parse "$current^{tree}")" = "250fe20d0629eb1c2dd38223d607877479f28a3f" ]; then
-              echo "master already has the landed tree"
-              exit 0
-            fi
-          fi
 
           pushed=0
           if [ -n "${DEPLOY_KEY}" ]; then
