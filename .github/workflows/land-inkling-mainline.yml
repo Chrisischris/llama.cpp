@@ -1,0 +1,68 @@
+name: land-inkling-mainline
+
+# One-shot. Rebuilds master from ggml-org/llama.cpp master plus the Spore
+# patches, then force-pushes master. The new master does not contain this workflow.
+
+on:
+  push:
+    branches:
+      - cursor/inkling-mainline-probe-4656
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  land:
+    if: contains(github.event.head_commit.message, 'land inkling mainline')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rebuild master from upstream and push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY_RELEASE }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/inkling-patches
+          base=https://raw.githubusercontent.com/sporeintel/homebrew-tap/329440244d6bab593a0c5036806a78534c113045/inkling-patches
+          for name in \
+            0001-fix-always-pass-tools-in-jinja-context-to-prevent-Un.patch \
+            0002-router-allow-extra-args-flag.patch \
+            0003-model-inkling2_loop-re-share-the-loop-slots-after-th.patch \
+            0004-ci-skip-s390x-release-runners-on-this-fork.patch
+          do
+            curl -fsSL "$base/$name" -o "/tmp/inkling-patches/$name"
+          done
+          git init -q /tmp/land
+          cd /tmp/land
+          git config user.email "me@chrishaen.com"
+          git config user.name "Chris Haen"
+          git remote add upstream https://github.com/ggml-org/llama.cpp.git
+          git fetch --no-tags upstream master
+          git checkout --detach upstream/master
+          git am /tmp/inkling-patches/*.patch
+          echo "landed $(git rev-parse HEAD) count $(git rev-list --count HEAD)"
+          test "$(git rev-list --count HEAD)" = "12604"
+          tree=$(git rev-parse 'HEAD^{tree}')
+          test "$tree" = "250fe20d0629eb1c2dd38223d607877479f28a3f"
+
+          pushed=0
+          if [ -n "${DEPLOY_KEY}" ]; then
+            mkdir -p ~/.ssh
+            printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            export GIT_SSH_COMMAND="ssh -i ${HOME}/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
+            if git push --force-with-lease=refs/heads/master:884b71fd44c9640c3476dcd4a09681c51f25fbb1 git@github.com:Chrisischris/llama.cpp.git HEAD:master; then
+              pushed=1
+              echo "pushed with deploy key"
+            else
+              echo "deploy key push failed; falling back to GITHUB_TOKEN"
+            fi
+          fi
+          if [ "$pushed" -eq 0 ]; then
+            git push --force-with-lease=refs/heads/master:884b71fd44c9640c3476dcd4a09681c51f25fbb1 \
+              "https://x-access-token:${GH_TOKEN}@github.com/Chrisischris/llama.cpp.git" HEAD:master
+            echo "pushed with GITHUB_TOKEN; dispatching Release"
+            gh workflow run release.yml --ref master -f create_release=true
+          fi
+          git push "https://x-access-token:${GH_TOKEN}@github.com/Chrisischris/llama.cpp.git" --delete cursor/inkling-mainline-probe-4656 || true
