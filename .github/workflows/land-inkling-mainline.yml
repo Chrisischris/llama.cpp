@@ -24,6 +24,7 @@ jobs:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY_RELEASE }}
         run: |
           set -euo pipefail
+          echo "trigger"
           mkdir -p /tmp/inkling-patches
           base=https://raw.githubusercontent.com/sporeintel/homebrew-tap/329440244d6bab593a0c5036806a78534c113045/inkling-patches
           for name in \
