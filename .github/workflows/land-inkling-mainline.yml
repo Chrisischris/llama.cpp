@@ -1,8 +1,9 @@
 name: land-inkling-mainline
 
 # One-shot, started by schedule because API commits on this fork do not
-# trigger push workflows. Force-pushes master to ggml-org master plus the
-# Spore patches. That push removes this file, so the schedule does not repeat.
+# trigger push workflows. Force-pushes master to the inkling2_loop commit
+# plus the Spore patches. That push removes this file, so the schedule
+# does not repeat.
 
 on:
   schedule:
@@ -38,8 +39,9 @@ jobs:
           git config user.email "me@chrishaen.com"
           git config user.name "Chris Haen"
           git remote add upstream https://github.com/ggml-org/llama.cpp.git
-          git fetch --no-tags upstream master
-          git checkout --detach upstream/master
+          # Pin the Inkling 2 Mini merge. Later upstream commits must not move this reset.
+          git fetch --no-tags upstream 29b52d398b294509746ec0a3f28948a3107c0213
+          git checkout --detach FETCH_HEAD
           git am /tmp/inkling-patches/*.patch
           echo "landed $(git rev-parse HEAD) count $(git rev-list --count HEAD)"
           test "$(git rev-list --count HEAD)" = "12604"
@@ -48,10 +50,11 @@ jobs:
 
           current=$(git ls-remote https://github.com/Chrisischris/llama.cpp.git refs/heads/master | awk '{print $1}')
           echo "leasing $current"
-          # Already landed.
-          if [ "$current" = "$(git rev-parse HEAD)" ]; then
-            echo "master already at landed commit"
-            exit 0
+          if git cat-file -e "$current^{tree}" 2>/dev/null; then
+            if [ "$(git rev-parse "$current^{tree}")" = "250fe20d0629eb1c2dd38223d607877479f28a3f" ]; then
+              echo "master already has the landed tree"
+              exit 0
+            fi
           fi
 
           pushed=0
